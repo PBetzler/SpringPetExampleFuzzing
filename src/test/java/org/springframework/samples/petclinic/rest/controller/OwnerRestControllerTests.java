@@ -16,6 +16,8 @@
 
 package org.springframework.samples.petclinic.rest.controller;
 
+import com.code_intelligence.jazzer.api.FuzzedDataProvider;
+import com.code_intelligence.jazzer.junit.FuzzTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -41,6 +43,8 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -82,8 +86,11 @@ class OwnerRestControllerTests {
 
     private List<VisitDto> visits;
 
+    private boolean beforeCalled = false;
+
     @BeforeEach
     void initOwners() {
+        beforeCalled = true;
         this.mockMvc = MockMvcBuilders.standaloneSetup(ownerRestController)
             .setControllerAdvice(new ExceptionControllerAdvice())
             .build();
@@ -389,6 +396,25 @@ class OwnerRestControllerTests {
         this.mockMvc.perform(post("/api/owners/1/pets/1/visits")
                 .content(newVisitAsJSON).accept(MediaType.APPLICATION_JSON_VALUE).contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(status().isCreated());
+    }
+
+    @FuzzTest
+    @WithMockUser(roles = "ONWER_ADMIN")
+    public void myFuzzTest(FuzzedDataProvider data) throws Exception {
+        if (!beforeCalled) {
+            throw new RuntimeException("BeforeEach was not called");
+        }
+
+        String fuzzData = data.consumeRemainingAsString();
+
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<String, String>();
+        params.add("firstName", fuzzData);
+        params.add("lastName", "Franklin");
+        params.add("address", "110 W. Liberty St.");
+        params.add("city", "Madison");
+        params.add("telephone", "6085551023");
+
+        this.mockMvc.perform(put("/api/owners/").params(params));
     }
 
 }
